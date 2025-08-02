@@ -1,52 +1,54 @@
+/* style.css */
+
+@import url('https://fonts.googleapis.com/css2?family=Orbitron:wght@500&display=swap');
+
 body {
-  font-family: "Segoe UI", sans-serif;
-  background: linear-gradient(135deg, #2d006b, #4f0b84);
+  font-family: 'Orbitron', sans-serif;
+  margin: 0;
+  padding: 0;
+  background: linear-gradient(135deg, rgba(45,0,107,0.9), rgba(79,11,132,0.9)), url('https://i.imgur.com/NZUNuCG.jpg') no-repeat center center fixed;
+  background-size: cover;
   display: flex;
   justify-content: center;
   align-items: center;
-  min-height: 100vh;
-  margin: 0;
-  padding: 1rem;
+  height: 100vh;
+  overflow: hidden;
 }
 
 .container {
-  background: rgba(0, 0, 0, 0.6);
-  padding: 3rem 2rem;
+  background: rgba(0, 0, 0, 0.7);
+  padding: 3rem;
   border-radius: 16px;
-  box-shadow: 0 0 20px rgba(255, 0, 255, 0.6);
+  box-shadow: 0 0 30px #00fff7;
   width: 100%;
-  max-width: 520px;
+  max-width: 600px;
   text-align: center;
   color: #fff;
   border: 2px solid #00fff7;
-
-  display: flex;
-  flex-direction: column;
-  justify-content: center;
-  min-height: 85vh;
 }
 
 h1 {
-  margin: 0 0 1rem 0;
+  margin: 0 0 1.5rem 0;
   font-size: 2rem;
   color: #ff6bff;
 }
 
 textarea {
   width: 100%;
-  height: 120px;
+  height: 140px;
   resize: none;
-  font-size: 1.1rem;
+  font-size: 1rem;
   padding: 1rem;
   border-radius: 10px;
   border: 1px solid #00fff7;
   background: rgba(255, 255, 255, 0.05);
   color: #fff;
-  margin: 1rem 0 1.5rem 0;
+  margin: 1.2rem 0;
+  box-sizing: border-box;
 }
 
 textarea::placeholder {
-  color: #ccc;
+  color: #aaa;
 }
 
 .controls {
@@ -80,7 +82,7 @@ textarea::placeholder {
   border-radius: 50%;
   cursor: pointer;
   transition: transform 0.2s ease, background 0.3s ease;
-  box-shadow: 0 0 10px #00fff7, 0 0 20px #00fff7;
+  box-shadow: 0 0 15px #00fff7, 0 0 25px #00fff7;
 }
 
 #playBtn:hover {
@@ -95,6 +97,7 @@ textarea::placeholder {
   border-radius: 4px;
   overflow: hidden;
   box-shadow: inset 0 0 6px #000;
+  margin-top: 0.5rem;
 }
 
 #progressBar {
@@ -105,14 +108,65 @@ textarea::placeholder {
   box-shadow: 0 0 10px #00fff7;
 }
 
-/* Responsive tweaks for mobile */
+/* Magical Galaxy Stars */
+.stars, .stars2, .stars3 {
+  position: absolute;
+  width: 100%;
+  height: 100%;
+  background: transparent url('https://i.imgur.com/Zl0zQOr.png') repeat top center;
+  z-index: -1;
+  animation: moveStars 100s linear infinite;
+  opacity: 0.5;
+}
+
+.stars2 {
+  background-image: url('https://i.imgur.com/0fksv2y.png');
+  animation-duration: 150s;
+}
+
+.stars3 {
+  background-image: url('https://i.imgur.com/W0NQy6R.png');
+  animation-duration: 200s;
+}
+
+@keyframes moveStars {
+  from { background-position: 0 0; }
+  to { background-position: 10000px 5000px; }
+}
+
+/* Voice waveform */
+.waveform {
+  display: flex;
+  justify-content: center;
+  gap: 4px;
+  margin-top: 1rem;
+}
+
+.bar {
+  width: 8px;
+  height: 20px;
+  background: #00fff7;
+  border-radius: 2px;
+  animation: pulse 1s infinite ease-in-out;
+}
+
+.bar:nth-child(2) { animation-delay: 0.1s; }
+.bar:nth-child(3) { animation-delay: 0.2s; }
+.bar:nth-child(4) { animation-delay: 0.3s; }
+.bar:nth-child(5) { animation-delay: 0.4s; }
+
+@keyframes pulse {
+  0%, 100% { transform: scaleY(1); }
+  50% { transform: scaleY(2); }
+}
+
 @media screen and (max-width: 480px) {
   .container {
-    padding: 2rem 1.5rem;
+    padding: 2rem 1rem;
   }
 
   h1 {
-    font-size: 1.6rem;
+    font-size: 1.5rem;
   }
 
   textarea {
