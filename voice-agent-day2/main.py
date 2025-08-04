@@ -1,27 +1,68 @@
 from fastapi import FastAPI, HTTPException
 from pydantic import BaseModel
+from dotenv import load_dotenv
+from fastapi.middleware.cors import CORSMiddleware
+import os
+import httpx
 
+# Load environment variables
+load_dotenv()
+
+# Initialize FastAPI app
 app = FastAPI()
 
+# Enable CORS for frontend requests (adjust origin if needed)
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=["*"],  # Use ["http://127.0.0.1:5500"] for stricter setup
+    allow_credentials=True,
+    allow_methods=["*"],
+    allow_headers=["*"],
+)
+
+# Get Murf API key from environment
+MURF_API_KEY = os.getenv("MURF_API_KEY")
+
+# Request body model
 class TTSRequest(BaseModel):
     text: str
+    voiceId: str = "en-US-terrell"
+    format: str = "MP3"
 
-@app.get("/")
-def read_root():
-    return {"message": "Welcome to Day 2 Voice Agent API. Use /docs to test."}
-
+# POST /generate endpoint
 @app.post("/generate")
-def generate_tts(data: TTSRequest):
-    text = data.text
-
-    if not text.strip():
+async def generate_tts(data: TTSRequest):
+    if not MURF_API_KEY:
+        raise HTTPException(status_code=500, detail="API key not found")
+    if not data.text.strip():
         raise HTTPException(status_code=400, detail="Text is required.")
 
-    # Simulated API call (since Murf's is private)
-    fake_audio_url = f"https://example.com/audio/{text.replace(' ', '_')}.mp3"
-
-    return {
-        "text_received": text,
-        "audio_url": fake_audio_url,
-        "note": "Simulated Murf API response. No real API call made."
+    payload = {
+        "text": data.text,
+        "voiceId": data.voiceId,
+        "format": data.format
     }
+    headers = {
+        "api-key": MURF_API_KEY,
+        "accept": "application/json",
+        "Content-Type": "application/json"
+    }
+
+    try:
+        async with httpx.AsyncClient() as client:
+            response = await client.post(
+                "https://api.murf.ai/v1/speech/generate-with-key",
+                json=payload,
+                headers=headers
+            )
+            response.raise_for_status()
+            result = response.json()
+            return {
+                "text_received": data.text,
+                "audio_url": result.get("audioFile"),
+                "note": "✅ Real Murf API call successful"
+            }
+    except httpx.HTTPStatusError as e:
+        raise HTTPException(status_code=e.response.status_code, detail=e.response.text)
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
