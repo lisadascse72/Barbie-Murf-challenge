@@ -2,24 +2,47 @@
 <html lang="en">
 <head>
   <meta charset="UTF-8" />
-  <title>Voice Agent UI</title>
+  <title>Voice Agent UI - Day 4</title>
   <link rel="stylesheet" href="/static/style.css" />
 </head>
 <body>
   <div class="container">
-    <h1>🎙️ Voice Agent - Day 1</h1>
+    <h1>🎙️ Voice Agent - Day 4: TTS + Echo Bot</h1>
 
+    <!-- Text-to-Speech Section -->
     <textarea id="text-input" placeholder="Type something to speak...">Hello! Welcome to my voice agent.</textarea>
 
     <div class="controls">
-      <select id="voiceSelect"></select>
       <button id="playBtn">▶️</button>
     </div>
+
+    <audio id="audioPlayer" controls style="width: 100%; display: none; margin-top: 1rem;"></audio>
 
     <div class="progress-container">
       <div id="progressBar"></div>
     </div>
+
+    <!-- Echo Bot Section -->
+<!-- Echo Bot Section -->
+<hr style="margin: 2rem 0; border-color: #00fff7;" />
+<h1 class="echo-heading">🎧 Echo Bot</h1>
+
+<div id="echoBotSection">
+  <div class="echo-controls">
+    <button class="echo-btn" id="recordToggleBtn">🎤 Start Recording</button>
+    <button class="echo-btn" id="playRecordedBtn">▶️ Play Recording</button>
   </div>
+  <audio id="recordedAudio" controls style="width: 100%; display: none;"></audio>
+</div>
+
+
+
+    <audio id="echoPlayer" controls style="width: 100%; display: none; margin-top: 1rem;"></audio>
+  </div>
+
+  <div class="stars"></div>
+  <div class="stars2"></div>
+  <div class="stars3"></div>
 
   <script src="/static/script.js"></script>
 </body>
