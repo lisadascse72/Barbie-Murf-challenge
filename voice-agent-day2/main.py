@@ -1,39 +1,46 @@
-from fastapi import FastAPI, HTTPException
+from fastapi import FastAPI, UploadFile, File, HTTPException
+from fastapi.middleware.cors import CORSMiddleware
+from fastapi.staticfiles import StaticFiles  # Add this at the top if not already
 from pydantic import BaseModel
 from dotenv import load_dotenv
-from fastapi.middleware.cors import CORSMiddleware
+from pathlib import Path
 import os
+import shutil
 import httpx
 
 # Load environment variables
 load_dotenv()
 
+# Create uploads directory if not exists
+UPLOAD_DIR = Path("uploads")
+UPLOAD_DIR.mkdir(exist_ok=True)
+
 # Initialize FastAPI app
 app = FastAPI()
 
-# Enable CORS for frontend requests (adjust origin if needed)
+# Enable CORS for frontend
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"],  # Use ["http://127.0.0.1:5500"] for stricter setup
+    allow_origins=["*"],  # Change this for production security
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
 )
 
-# Get Murf API key from environment
+# Your Murf API key from .env
 MURF_API_KEY = os.getenv("MURF_API_KEY")
 
-# Request body model
+# Model for TTS request
 class TTSRequest(BaseModel):
     text: str
     voiceId: str = "en-US-terrell"
     format: str = "MP3"
 
-# POST /generate endpoint
+# ---------- TTS Generation Endpoint ----------
 @app.post("/generate")
 async def generate_tts(data: TTSRequest):
     if not MURF_API_KEY:
-        raise HTTPException(status_code=500, detail="API key not found")
+        raise HTTPException(status_code=500, detail="MURF_API_KEY not found in environment.")
     if not data.text.strip():
         raise HTTPException(status_code=400, detail="Text is required.")
 
@@ -42,6 +49,7 @@ async def generate_tts(data: TTSRequest):
         "voiceId": data.voiceId,
         "format": data.format
     }
+
     headers = {
         "api-key": MURF_API_KEY,
         "accept": "application/json",
@@ -60,9 +68,35 @@ async def generate_tts(data: TTSRequest):
             return {
                 "text_received": data.text,
                 "audio_url": result.get("audioFile"),
-                "note": "✅ Real Murf API call successful"
+                "note": "✅ Murf API call successful"
             }
     except httpx.HTTPStatusError as e:
         raise HTTPException(status_code=e.response.status_code, detail=e.response.text)
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
+
+
+# ---------- Upload Audio Endpoint ----------
+@app.post("/upload-audio/")
+async def upload_audio(file: UploadFile = File(...)):
+    try:
+        # Save the uploaded file to /uploads folder
+        file_location = UPLOAD_DIR / file.filename
+        with open(file_location, "wb") as buffer:
+            shutil.copyfileobj(file.file, buffer)
+
+        # Get file size in KB
+        file_size_kb = round(file_location.stat().st_size / 1024, 2)
+
+        return {
+            "filename": file.filename,
+            "content_type": file.content_type,
+            "file_size": f"{file_size_kb} KB",
+            "message": "✅ Upload successful"
+        }
+    
+
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Upload failed: {str(e)}")
+# ---------- Serve uploaded files ----------
+app.mount("/uploads", StaticFiles(directory="uploads"), name="uploads")
