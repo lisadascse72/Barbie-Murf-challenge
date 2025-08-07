@@ -7,6 +7,8 @@ from pathlib import Path
 import os
 import shutil
 import httpx
+import assemblyai as aai
+
 
 # Load environment variables
 load_dotenv()
@@ -100,3 +102,27 @@ async def upload_audio(file: UploadFile = File(...)):
         raise HTTPException(status_code=500, detail=f"Upload failed: {str(e)}")
 # ---------- Serve uploaded files ----------
 app.mount("/uploads", StaticFiles(directory="uploads"), name="uploads")
+
+@app.post("/transcribe/file")
+async def transcribe_audio(file: UploadFile = File(...)):
+    try:
+        # Load API key
+        ASSEMBLYAI_API_KEY = os.getenv("ASSEMBLYAI_API_KEY")
+        if not ASSEMBLYAI_API_KEY:
+            raise HTTPException(status_code=500, detail="Missing AssemblyAI API key.")
+
+        # Read audio bytes
+        audio_bytes = await file.read()
+
+        # Use AssemblyAI SDK to transcribe
+        aai.settings.api_key = ASSEMBLYAI_API_KEY
+        transcriber = aai.Transcriber()
+        transcript = transcriber.transcribe(audio_bytes)
+
+        return {
+            "transcript": transcript.text,
+            "message": "✅ Transcription successful"
+        }
+
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Transcription failed: {str(e)}")
