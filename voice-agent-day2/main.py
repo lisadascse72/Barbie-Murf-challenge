@@ -76,6 +76,45 @@ async def generate_tts(data: TTSRequest):
         raise HTTPException(status_code=e.response.status_code, detail=e.response.text)
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
+    
+
+    # ---------- LLM Query Endpoint (Gemini) ----------
+import google.generativeai as genai
+
+# Load Gemini API key from env
+GEMINI_API_KEY = os.getenv("VITE_GEMINI_API_KEY")
+if not GEMINI_API_KEY:
+    raise RuntimeError("VITE_GEMINI_API_KEY not found in environment.")
+
+# Configure Gemini SDK
+genai.configure(api_key=GEMINI_API_KEY)
+
+class LLMRequest(BaseModel):
+    prompt: str
+
+@app.post("/llm/query")
+async def llm_query(request: LLMRequest):
+    if not request.prompt.strip():
+        raise HTTPException(status_code=400, detail="Prompt text is required.")
+
+    try:
+        # Choose a Gemini model
+        model = genai.GenerativeModel("gemini-1.5-flash")
+
+        # Generate content
+        response = model.generate_content(request.prompt)
+
+        # Return the output text
+        return {
+            "prompt": request.prompt,
+            "response": response.text
+        }
+
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"LLM request failed: {str(e)}")
+
+
+
 
 
 # ---------- Upload Audio Endpoint ----------
@@ -126,3 +165,6 @@ async def transcribe_audio(file: UploadFile = File(...)):
 
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Transcription failed: {str(e)}")
+    
+
+
