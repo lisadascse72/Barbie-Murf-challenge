@@ -1,4 +1,4 @@
-from fastapi import FastAPI, UploadFile, File, HTTPException
+from fastapi import FastAPI, UploadFile, File, HTTPException, Path as FastAPIPath
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel
@@ -9,6 +9,10 @@ import shutil
 import httpx
 import assemblyai as aai
 import google.generativeai as genai
+import logging # Import logging module
+
+# Configure logging
+logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
 
 # Load environment variables
 load_dotenv()
@@ -23,109 +27,144 @@ app = FastAPI()
 # Enable CORS for frontend
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"],  # Change this for production security
+    allow_origins=["*"],
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
 )
 
-# Your Murf API key from .env
 MURF_API_KEY = os.getenv("MURF_API_KEY")
 
-# Model for TTS request
 class TTSRequest(BaseModel):
     text: str
     voiceId: str = "en-US-terrell"
     format: str = "MP3"
 
-# ---------- TTS Generation Endpoint ----------
-@app.post("/generate")
-async def generate_tts(data: TTSRequest):
+# --- Global Chat History Datastore ---
+chat_history_store = {}
+# --- End Global Chat History Datastore ---
+
+# Load Gemini API key from env
+GEMINI_API_KEY = os.getenv("VITE_GEMINI_API_KEY")
+if not GEMINI_API_KEY:
+    logging.warning("VITE_GEMINI_API_KEY not found in environment. LLM functions may fail.")
+else:
+    genai.configure(api_key=GEMINI_API_KEY)
+
+
+# --- Helper Function for Fallback Audio ---
+FALLBACK_MESSAGE = "I'm having trouble connecting right now. Please try again later."
+# In a real app, you might pre-generate this audio and host it, or generate it on demand.
+# For this task, we'll try to generate it using Murf AI if a failure occurs.
+# If Murf also fails, the client will handle no audio URL being present.
+
+async def get_fallback_audio_url(text: str = FALLBACK_MESSAGE) -> str:
     if not MURF_API_KEY:
-        raise HTTPException(status_code=500, detail="MURF_API_KEY not found in environment.")
-    if not data.text.strip():
-        raise HTTPException(status_code=400, detail="Text is required.")
+        logging.error("MURF_API_KEY is missing for fallback audio generation.")
+        return "" # No fallback audio if Murf key is missing
 
     payload = {
-        "text": data.text,
-        "voiceId": data.voiceId,
-        "format": data.format
+        "text": text,
+        "voiceId": "en-US-terrell",
+        "format": "MP3"
     }
-
     headers = {
         "api-key": MURF_API_KEY,
         "accept": "application/json",
         "Content-Type": "application/json"
     }
-
     try:
         async with httpx.AsyncClient() as client:
             response = await client.post(
                 "https://api.murf.ai/v1/speech/generate-with-key",
                 json=payload,
-                headers=headers
+                headers=headers,
+                timeout=10 # Short timeout for fallback
             )
             response.raise_for_status()
             result = response.json()
-            return {
-                "text_received": data.text,
-                "audio_url": result.get("audioFile"),
-                "note": "✅ Murf API call successful"
-            }
-    except httpx.HTTPStatusError as e:
-        raise HTTPException(status_code=e.response.status_code, detail=e.response.text)
+            return result.get("audioFile", "")
     except Exception as e:
-        raise HTTPException(status_code=500, detail=str(e))
+        logging.error(f"Failed to generate fallback audio via Murf AI: {e}")
+        return ""
+
+# --- Centralized Error Response Handler ---
+async def create_error_response(status_code: int, detail: str, user_transcript: str = None) -> dict:
+    logging.error(f"API Error - Status: {status_code}, Detail: {detail}")
+    fallback_audio_url = await get_fallback_audio_url()
+    
+    response_content = {
+        "user_transcript": user_transcript, # Keep original transcript if available
+        "llm_response_text": FALLBACK_MESSAGE,
+        "llm_response_audio_url": fallback_audio_url,
+        "message": f"❌ Error: {detail}",
+        "status_code": status_code
+    }
+    return response_content
 
 
-# ---------- LLM Query Endpoint (Gemini) ----------
-# Load Gemini API key from env
-GEMINI_API_KEY = os.getenv("VITE_GEMINI_API_KEY") # Assuming VITE_GEMINI_API_KEY is used consistently
-if not GEMINI_API_KEY:
-    raise RuntimeError("VITE_GEMINI_API_KEY not found in environment.")
-
-# Configure Gemini SDK
-genai.configure(api_key=GEMINI_API_KEY)
-
-@app.post("/llm/query_audio") # Changed endpoint name to avoid conflict with text-based if you want to keep it.
-async def llm_query_audio(file: UploadFile = File(...)):
-    # 1. Transcribe the audio using AssemblyAI
+# ---------- Chat History Endpoint: POST /agent/chat/{session_id} (for AUDIO input) ----------
+@app.post("/agent/chat/{session_id}")
+async def agent_chat_audio(
+    session_id: str = FastAPIPath(..., description="Unique ID for the chat session"),
+    file: UploadFile = File(...)
+):
+    user_transcript = None
+    
+    # 1. Transcribe the user's audio input using AssemblyAI
     ASSEMBLYAI_API_KEY = os.getenv("ASSEMBLYAI_API_KEY")
     if not ASSEMBLYAI_API_KEY:
-        raise HTTPException(status_code=500, detail="Missing AssemblyAI API key.")
+        return await create_error_response(500, "Missing AssemblyAI API key. Please set it in .env.")
 
     try:
         audio_bytes = await file.read()
         aai.settings.api_key = ASSEMBLYAI_API_KEY
         transcriber = aai.Transcriber()
         transcript_obj = transcriber.transcribe(audio_bytes)
-        transcribed_text = transcript_obj.text
+        user_transcript = transcript_obj.text
 
-        if not transcribed_text:
-            raise HTTPException(status_code=400, detail="Could not transcribe audio.")
+        if not user_transcript:
+            return await create_error_response(400, "Could not transcribe audio. Please speak more clearly.", user_transcript)
 
     except Exception as e:
-        raise HTTPException(status_code=500, detail=f"Audio transcription failed: {str(e)}")
+        logging.exception("AssemblyAI transcription failed:")
+        return await create_error_response(500, f"Audio transcription service failed: {e}", user_transcript)
 
-    # 2. Send transcribed text to Gemini
+    # 2. Manage Chat History - Append user's message BEFORE LLM call
+    current_chat_history = chat_history_store.get(session_id, [])
+    current_chat_history.append({"role": "user", "parts": [user_transcript]})
+
+    # 3. Send combined history to Gemini LLM
     try:
+        if not GEMINI_API_KEY:
+            raise ValueError("Gemini API key is not configured.")
         model = genai.GenerativeModel("gemini-1.5-flash")
-        gemini_response = model.generate_content(transcribed_text)
+        chat_session = model.start_chat(history=current_chat_history)
+        gemini_response = await chat_session.send_message_async(user_transcript)
         llm_response_text = gemini_response.text
 
-    except Exception as e:
-        raise HTTPException(status_code=500, detail=f"LLM request failed: {str(e)}")
+        # Append LLM's response to the history
+        current_chat_history.append({"role": "model", "parts": [llm_response_text]})
+        chat_history_store[session_id] = current_chat_history # Update the store
 
-    # 3. Send Gemini's response to Murf AI for TTS
+    except Exception as e:
+        logging.exception("Gemini LLM request failed:")
+        # If LLM call fails, remove the last user message to avoid sending unresponded message next time
+        if current_chat_history and current_chat_history[-1]["role"] == "user":
+            current_chat_history.pop()
+            chat_history_store[session_id] = current_chat_history
+        return await create_error_response(500, f"LLM service failed: {e}", user_transcript)
+
+
+    # 4. Send Gemini's response to Murf AI for TTS
     if not MURF_API_KEY:
-        raise HTTPException(status_code=500, detail="MURF_API_KEY not found in environment for LLM response TTS.")
+        return await create_error_response(500, "Missing Murf AI API key. Please set it in .env.", user_transcript)
 
     murf_payload = {
         "text": llm_response_text,
-        "voiceId": "en-US-terrell", # You can make this configurable if needed
+        "voiceId": "en-US-terrell",
         "format": "MP3"
     }
-
     murf_headers = {
         "api-key": MURF_API_KEY,
         "accept": "application/json",
@@ -143,65 +182,106 @@ async def llm_query_audio(file: UploadFile = File(...)):
             murf_result = murf_res.json()
             murf_audio_url = murf_result.get("audioFile")
             if not murf_audio_url:
-                raise HTTPException(status_code=500, detail="Murf AI did not return an audio URL.")
+                raise ValueError("Murf AI did not return an audio URL.")
 
             return {
-                "original_transcript": transcribed_text,
+                "user_transcript": user_transcript,
                 "llm_response_text": llm_response_text,
                 "llm_response_audio_url": murf_audio_url,
-                "message": "✅ LLM query and TTS successful"
+                "message": "✅ Agent chat successful (audio input)",
+                "session_id": session_id
             }
     except httpx.HTTPStatusError as e:
-        raise HTTPException(status_code=e.response.status_code, detail=f"Murf AI TTS failed: {e.response.text}")
+        logging.exception("Murf AI TTS failed with HTTP error:")
+        return await create_error_response(e.response.status_code, f"Murf AI TTS failed: {e.response.text}", user_transcript)
     except Exception as e:
-        raise HTTPException(status_code=500, detail=f"Murf AI TTS for LLM response failed: {str(e)}")
+        logging.exception("Murf AI TTS failed unexpectedly:")
+        return await create_error_response(500, f"Murf AI TTS service failed: {e}", user_transcript)
 
 
-# ---------- Upload Audio Endpoint (Existing, kept for file saving if needed elsewhere) ----------
-@app.post("/upload-audio/")
-async def upload_audio(file: UploadFile = File(...)):
+# ---------- Chat History Endpoint: POST /agent/chat_text/{session_id} (for TEXT input) ----------
+class TextChatRequest(BaseModel):
+    user_text: str
+
+@app.post("/agent/chat_text/{session_id}")
+async def agent_chat_text(
+    session_id: str = FastAPIPath(..., description="Unique ID for the chat session"),
+    request: TextChatRequest = None
+):
+    user_text_input = None # Initialize to None
+
+    if not request or not request.user_text.strip():
+        return await create_error_response(400, "Text input is required.")
+    
+    user_text_input = request.user_text.strip()
+
+    # 1. Manage Chat History - Append user's message BEFORE LLM call
+    current_chat_history = chat_history_store.get(session_id, [])
+    current_chat_history.append({"role": "user", "parts": [user_text_input]})
+
+    # 2. Send combined history to Gemini LLM
     try:
-        # Save the uploaded file to /uploads folder
-        file_location = UPLOAD_DIR / file.filename
-        with open(file_location, "wb") as buffer:
-            shutil.copyfileobj(file.file, buffer)
+        if not GEMINI_API_KEY:
+            raise ValueError("Gemini API key is not configured.")
+        model = genai.GenerativeModel("gemini-1.5-flash")
+        chat_session = model.start_chat(history=current_chat_history)
+        gemini_response = await chat_session.send_message_async(user_text_input)
+        llm_response_text = gemini_response.text
 
-        # Get file size in KB
-        file_size_kb = round(file_location.stat().st_size / 1024, 2)
+        # Append LLM's response to the history
+        current_chat_history.append({"role": "model", "parts": [llm_response_text]})
+        chat_history_store[session_id] = current_chat_history # Update the store
 
-        return {
-            "filename": file.filename,
-            "content_type": file.content_type,
-            "file_size": f"{file_size_kb} KB",
-            "message": "✅ Upload successful"
-        }
     except Exception as e:
-        raise HTTPException(status_code=500, detail=f"Upload failed: {str(e)}")
+        logging.exception("Gemini LLM request failed:")
+        if current_chat_history and current_chat_history[-1]["role"] == "user":
+            current_chat_history.pop()
+            chat_history_store[session_id] = current_chat_history
+        return await create_error_response(500, f"LLM service failed: {e}", user_text_input)
 
-# ---------- Serve uploaded files ----------
+    # 3. Send Gemini's response to Murf AI for TTS
+    if not MURF_API_KEY:
+        return await create_error_response(500, "Missing Murf AI API key. Please set it in .env.", user_text_input)
+
+    murf_payload = {
+        "text": llm_response_text,
+        "voiceId": "en-US-terrell",
+        "format": "MP3"
+    }
+    murf_headers = {
+        "api-key": MURF_API_KEY,
+        "accept": "application/json",
+        "Content-Type": "application/json"
+    }
+
+    try:
+        async with httpx.AsyncClient() as client:
+            murf_res = await client.post(
+                "https://api.murf.ai/v1/speech/generate-with-key",
+                json=murf_payload,
+                headers=murf_headers
+            )
+            murf_res.raise_for_status()
+            murf_result = murf_res.json()
+            murf_audio_url = murf_result.get("audioFile")
+            if not murf_audio_url:
+                raise ValueError("Murf AI did not return an audio URL.")
+
+            return {
+                "user_text": user_text_input,
+                "llm_response_text": llm_response_text,
+                "llm_response_audio_url": murf_audio_url,
+                "message": "✅ Agent chat successful (text input)",
+                "session_id": session_id
+            }
+    except httpx.HTTPStatusError as e:
+        logging.exception("Murf AI TTS failed with HTTP error:")
+        return await create_error_response(e.response.status_code, f"Murf AI TTS failed: {e.response.text}", user_text_input)
+    except Exception as e:
+        logging.exception("Murf AI TTS failed unexpectedly:")
+        return await create_error_response(500, f"Murf AI TTS service failed: {e}", user_text_input)
+
+
+# Serve uploaded files (needed for internal use, e.g., if Murf AI returns a local path)
 app.mount("/uploads", StaticFiles(directory="uploads"), name="uploads")
 
-# ---------- Transcribe File Endpoint (Existing, but now LLM endpoint uses it internally) ----------
-@app.post("/transcribe/file")
-async def transcribe_audio(file: UploadFile = File(...)):
-    try:
-        # Load API key
-        ASSEMBLYAI_API_KEY = os.getenv("ASSEMBLYAI_API_KEY")
-        if not ASSEMBLYAI_API_KEY:
-            raise HTTPException(status_code=500, detail="Missing AssemblyAI API key.")
-
-        # Read audio bytes
-        audio_bytes = await file.read()
-
-        # Use AssemblyAI SDK to transcribe
-        aai.settings.api_key = ASSEMBLYAI_API_KEY
-        transcriber = aai.Transcriber()
-        transcript = transcriber.transcribe(audio_bytes)
-
-        return {
-            "transcript": transcript.text,
-            "message": "✅ Transcription successful"
-        }
-
-    except Exception as e:
-        raise HTTPException(status_code=500, detail=f"Transcription failed: {str(e)}")
