@@ -72,10 +72,22 @@ uvicorn main:app --reload
 ```
 
 ### 5. Test the Voice Agent
-Use `curl`, Postman, or the provided web UI to interact with your agent.
+```bash
+# Run the API server
+uvicorn main:app --reload
 
----
+#Text Chat Endpoint
 
+curl -X POST "http://127.0.0.1:8000/agent/chat_text/test_session" \
+-H "Content-Type: application/json" \
+-d '{"user_text": "Hello, how are you?"}'
+
+
+#Audio Chat Endpoint
+
+curl -X POST "http://127.0.0.1:8000/agent/chat/test_session" \
+-F "file=@sample.wav"
+```
 ## 📚 Contributing
 
 Feel free to fork, submit issues, or suggest improvements!
