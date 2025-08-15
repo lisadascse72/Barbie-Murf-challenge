@@ -1,49 +1,45 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-  <meta charset="UTF-8" />
-  <title>Voice Agent UI - Day 4</title>
-  <link rel="stylesheet" href="/static/style.css" />
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>AI Voice Agent - Conversational</title>
+    <link rel="stylesheet" href="/static/style.css" />
 </head>
 <body>
-  <div class="container">
-    <h1>🎙️ Voice Agent - Day 4: TTS + Echo Bot</h1>
+    <div class="container">
+        <h1>🎙️ Conversational AI Agent</h1>
 
-    <!-- Text-to-Speech Section -->
-    <textarea id="text-input" placeholder="Type something to speak...">Hello! Welcome to my voice agent.</textarea>
+        <!-- Displays the current session ID -->
+        <p id="sessionIdDisplay" class="info-text"></p>
+        <!-- Displays dynamic status messages to the user -->
+        <p id="llmStatusMessage" class="info-text"></p>
 
-    <div class="controls">
-      <button id="playBtn">▶️</button>
+        <!-- Main chat history display area -->
+        <div id="chatDisplay" class="chat-display">
+            <!-- Individual chat messages (user/AI) will be dynamically added here by JavaScript -->
+        </div>
+
+        <!-- Audio player for AI voice responses -->
+        <audio id="llmResponseAudio" controls class="audio-player"></audio>
+
+        <!-- Text Input and Send Button -->
+        <div class="text-input-section">
+            <textarea id="textInput" placeholder="Type your message here..."></textarea>
+            <button id="sendTextBtn" class="send-text-btn">Send Text</button>
+        </div>
+
+        <!-- Main Control Button for Voice Conversation -->
+        <button id="queryLLMBtn" class="main-control-btn">
+            🎤 Start Voice Chat
+        </button>
     </div>
 
-    <audio id="audioPlayer" controls style="width: 100%; display: none; margin-top: 1rem;"></audio>
+    <!-- Magical Galaxy Stars (from your original design, remain as background) -->
+    <div class="stars"></div>
+    <div class="stars2"></div>
+    <div class="stars3"></div>
 
-    <div class="progress-container">
-      <div id="progressBar"></div>
-    </div>
-
-    <!-- Echo Bot Section -->
-<!-- Echo Bot Section -->
-<hr style="margin: 2rem 0; border-color: #00fff7;" />
-<h1 class="echo-heading">🎧 Echo Bot</h1>
-
-<div id="echoBotSection">
-  <div class="echo-controls">
-    <button class="echo-btn" id="recordToggleBtn">🎤 Start Recording</button>
-    <button class="echo-btn" id="playRecordedBtn">▶️ Play Recording</button>
-  </div>
-  <audio id="recordedAudio" controls style="width: 100%; display: none;"></audio>
-</div>
-
-
-
-    <audio id="echoPlayer" controls style="width: 100%; display: none; margin-top: 1rem;"></audio>
-  </div>
-
-  <div class="stars"></div>
-  <div class="stars2"></div>
-  <div class="stars3"></div>
-
-  <script src="/static/script.js"></script>
+    <script src="/static/script.js"></script>
 </body>
 </html>
