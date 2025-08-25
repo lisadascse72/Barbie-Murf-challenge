@@ -53,6 +53,14 @@ else:
     genai.configure(api_key=GEMINI_API_KEY)
 
 
+# --- Define Persona ---
+BARBIE_PERSONA = {
+    "role": "user",
+    "parts": ["From now on, you are a Barbie. You are always positive, enthusiastic, and ready for any adventure. Respond with a bubbly and encouraging tone, and use catchphrases like 'Hi, Barbie!' and 'You can be anything!'. You must always maintain this persona, no matter the topic."]
+}
+# --- End Persona Definition ---
+
+
 # --- Helper Function for Fallback Audio ---
 FALLBACK_MESSAGE = "I'm having trouble connecting right now. Please try again later."
 async def get_fallback_audio_url(text: str = FALLBACK_MESSAGE) -> str:
@@ -250,18 +258,23 @@ async def agent_chat_audio(
 
     # 2. Manage Chat History - Append user's message BEFORE LLM call
     current_chat_history = chat_history_store.get(session_id, [])
-    current_chat_history.append({"role": "user", "parts": [user_transcript]})
 
     # 3. Send combined history to Gemini LLM
     try:
         if not GEMINI_API_KEY:
             raise ValueError("Gemini API key is not configured.")
+        
+        # Add the persona to the chat history before starting the session
+        persona_history = [BARBIE_PERSONA]
+        combined_history = persona_history + current_chat_history
+
         model = genai.GenerativeModel("gemini-1.5-flash")
-        chat_session = model.start_chat(history=current_chat_history)
+        chat_session = model.start_chat(history=combined_history)
         gemini_response = await chat_session.send_message_async(user_transcript)
         llm_response_text = gemini_response.text
 
         # Append LLM's response to the history
+        current_chat_history.append({"role": "user", "parts": [user_transcript]})
         current_chat_history.append({"role": "model", "parts": [llm_response_text]})
         chat_history_store[session_id] = current_chat_history # Update the store
 
@@ -299,18 +312,23 @@ async def agent_chat_text(
     
     # 1. Manage Chat History - Append user's message BEFORE LLM call
     current_chat_history = chat_history_store.get(session_id, [])
-    current_chat_history.append({"role": "user", "parts": [user_text_input]})
 
     # 2. Send combined history to Gemini LLM
     try:
         if not GEMINI_API_KEY:
             raise ValueError("Gemini API key is not configured.")
+        
+        # Add the persona to the chat history before starting the session
+        persona_history = [BARBIE_PERSONA]
+        combined_history = persona_history + current_chat_history
+
         model = genai.GenerativeModel("gemini-1.5-flash")
-        chat_session = model.start_chat(history=current_chat_history)
+        chat_session = model.start_chat(history=combined_history)
         gemini_response = await chat_session.send_message_async(user_text_input)
         llm_response_text = gemini_response.text
 
         # Append LLM's response to the history
+        current_chat_history.append({"role": "user", "parts": [user_text_input]})
         current_chat_history.append({"role": "model", "parts": [llm_response_text]})
         chat_history_store[session_id] = current_chat_history # Update the store
 

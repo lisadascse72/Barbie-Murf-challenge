@@ -2,32 +2,31 @@
 <html lang="en">
 <head>
     <meta charset="UTF-8" />
-    <title>Voice Agent UI - Day 20</title>
+    <title>Barbie Voice Agent</title>
     <link rel="stylesheet" href="/static/style.css" />
 </head>
 <body>
     <div class="container">
-        <h1>🎙️ Voice Agent - Day 20: Murf Websockets</h1>
+        <h1>
+            <img src="/assets/barbie.jpg" alt="Barbie Icon" class="barbie-icon" />
+            Barbie's Dream House chat
+        </h1>
 
-        <hr style="margin: 2rem 0; border-color: #ff6bff;" />
-        <h1 class="chat-heading">💬 AI Chatbot</h1>
+        <hr style="margin: 2rem 0; border-color: #FFC0CB;" />
+        <h1 class="chat-heading">Let's chat!</h1>
 
         <div id="chatbox" class="chatbox">
-            </div>
+        </div>
 
         <div class="chat-input-controls">
-            <input type="text" id="chat-text-input" placeholder="Type your message..." />
-            <button class="chat-btn" id="sendTextBtn">Send Text</button>
-            <button class="chat-btn" id="startRecordingChatBtn">🎤 Start Chat</button>
+            <input type="text" id="chat-text-input" placeholder="What's on your mind, fashionista?" />
+            <button class="chat-btn" id="sendTextBtn">Send</button>
+            <button class="chat-btn" id="startRecordingChatBtn">💖 Start Chat</button>
             <button class="chat-btn" id="stopRecordingChatBtn" style="display: none;">⏹️ Stop Chat</button>
         </div>
 
         <audio id="llmResponseAudioPlayer" controls style="width: 100%; display: none; margin-top: 1rem;"></audio>
     </div>
-
-    <div class="stars"></div>
-    <div class="stars2"></div>
-    <div class="stars3"></div>
 
     <script src="/static/script.js"></script>
 </body>
