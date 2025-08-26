@@ -11,7 +11,7 @@ import assemblyai as aai
 import google.generativeai as genai
 import logging
 import asyncio
-import websockets # Import the websockets library
+import websockets
 import json
 import base64
 
@@ -53,10 +53,18 @@ else:
     genai.configure(api_key=GEMINI_API_KEY)
 
 
-# --- Define Persona ---
+# --- Define Persona with "Stylist" Special Skill ---
 BARBIE_PERSONA = {
     "role": "user",
-    "parts": ["From now on, you are a Barbie. You are always positive, enthusiastic, and ready for any adventure. Respond with a bubbly and encouraging tone, and use catchphrases like 'Hi, Barbie!' and 'You can be anything!'. You must always maintain this persona, no matter the topic."]
+    "parts": ["""From now on, you are a Barbie. You are always positive, enthusiastic, and ready for any adventure. You must always respond with a bubbly and encouraging tone, and use catchphrases like 'Hi, Barbie!' and 'You can be anything!'.
+
+You have a special skill: you are a professional Barbie Stylist! When someone asks for fashion or styling advice, you must act as a stylist. Your advice should be bright, fun, and include suggestions for outfits, colors, and accessories that are perfect for any occasion. You can suggest things like:
+- "A sparkly pink top with some fabulous flare jeans!"
+- "A sunny yellow dress with a shimmering purse and heels!"
+- "A bright blue jumpsuit with some glittery jewelry to make it pop!"
+- "Remember, the perfect outfit always has a touch of sparkle!"
+Always maintain your Barbie persona, even while giving detailed stylist advice. The goal is to make the user feel confident and stylish for their adventure!"""
+]
 }
 # --- End Persona Definition ---
 
@@ -70,7 +78,8 @@ async def get_fallback_audio_url(text: str = FALLBACK_MESSAGE) -> str:
 
     payload = {
         "text": text,
-        "voiceId": "en-US-terrell",
+        # Using a stable, known female voice from Murf's library to avoid connection issues.
+        "voiceId": "en-US-teresa",
         "format": "MP3"
     }
     headers = {
@@ -115,7 +124,6 @@ async def websocket_endpoint(websocket: WebSocket, session_id: str):
 
     try:
         while True:
-            # Wait for a message from the client (e.g., a "start" signal or transcribed text from another endpoint)
             message = await websocket.receive_text()
             logging.info(f"Received WebSocket message: {message} for session {session_id}")
             
@@ -136,27 +144,21 @@ async def websocket_endpoint(websocket: WebSocket, session_id: str):
                 await websocket.send_json({"type": "error", "message": "Murf AI API key is missing."})
                 continue
 
-            # --- START OF REQUIRED CHANGES BASED ON MURF DOCS ---
-            # Correct Murf WebSocket base URL from documentation
             murf_base_ws_url = "wss://api.murf.ai/v1/speech/stream-input"
-            
-            # Construct the full URL with query parameters as specified by Murf docs
-            # Using parameters from Murf's quickstart guide for WAV format, 44.1kHz sample rate, mono channel.
             murf_ws_url_with_params = (
                 f"{murf_base_ws_url}?api-key={MURF_API_KEY}&sample_rate=44100&channel_type=MONO&format=WAV"
             )
-            # --- END OF REQUIRED CHANGES ---
 
             try:
                 # Connect to Murf AI WebSocket with the corrected URL and parameters
                 async with websockets.connect(murf_ws_url_with_params) as murf_websocket:
                     logging.info("Connected to Murf AI WebSocket.")
                     
-                    # Send voice configuration first as per Murf's example
                     voice_config_msg = {
                         "voice_config": {
-                            "voiceId": "en-US-terrell", # Use your chosen voice ID
-                            "style": "Conversational", # Example style, adjust as needed
+                            # CHANGE: Switched to a known stable female voice to ensure connection.
+                            "voiceId": "en-US-teresa",
+                            "style": "Conversational",
                             "rate": 0,
                             "pitch": 0,
                             "variation": 1
@@ -164,37 +166,30 @@ async def websocket_endpoint(websocket: WebSocket, session_id: str):
                     }
                     await murf_websocket.send(json.dumps(voice_config_msg))
 
-                    # Send the text to Murf for synthesis
-                    # Include context_id as per the assignment note
                     text_msg = {
                         "text": llm_response_text,
-                        "context_id": session_id, # Add context_id here as per Murf's "Best Practices"
-                        "end": True # Signals end of text for this request, allows context to close
+                        "context_id": session_id,
+                        "end": True
                     }
                     await murf_websocket.send(json.dumps(text_msg))
 
-                    # Process incoming audio chunks from Murf
                     while True:
                         try:
                             murf_response = await murf_websocket.recv()
                             murf_data = json.loads(murf_response)
 
-                            # Check for the "audio" key directly as per Murf's example output
                             if "audio" in murf_data:
                                 base64_audio = murf_data.get("audio")
                                 if base64_audio:
-                                    # Print the base64 encoded audio to the console as requested
-                                    print(f"Received Base64 Audio Chunk: {base64_audio[:100]}...") # Print first 100 chars
-                                    
-                                    # Send the base64 audio to the client
+                                    print(f"Received Base64 Audio Chunk: {base64_audio[:100]}...")
                                     await websocket.send_json({
                                         "type": "audio_chunk",
                                         "audio": base64_audio
                                     })
-                            elif murf_data.get("final"): # Murf sends a "final" message when done
+                            elif murf_data.get("final"):
                                 logging.info("Murf AI finished streaming audio.")
                                 await websocket.send_json({"type": "finished_audio"})
-                                break # Break from inner Murf WS loop
+                                break
                             elif murf_data.get("type") == "error":
                                 error_message = murf_data.get("message", "Unknown Murf error")
                                 logging.error(f"Murf AI Streaming Error: {error_message}")
@@ -214,19 +209,14 @@ async def websocket_endpoint(websocket: WebSocket, session_id: str):
                 logging.exception(f"Error establishing Murf WS connection: {e}")
                 await websocket.send_json({"type": "error", "message": f"Murf WS connection failed: {e}"})
 
-            # After streaming is done or an error occurs, the client can send another request
-            # or the connection can close. For this example, we'll keep the outer loop
-            # so the client can initiate multiple streaming sessions over the same WS.
-
     except WebSocketDisconnect:
         logging.info(f"WebSocket disconnected for session: {session_id}")
     except Exception as e:
         logging.exception(f"WebSocket error for session {session_id}: {e}")
-        # Optionally send an error message to the client before closing
         try:
             await websocket.send_json({"type": "error", "message": f"Server error: {e}"})
         except RuntimeError:
-            pass # Client already disconnected
+            pass
 
 # This endpoint handles the initial audio upload, transcription, and LLM call.
 # It then signals the client to open the WebSocket for streaming the LLM's response.
