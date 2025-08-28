@@ -2,32 +2,43 @@
 <html lang="en">
 <head>
     <meta charset="UTF-8" />
-    <title>Barbie Voice Agent</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Magical Voice Agent</title>
     <link rel="stylesheet" href="/static/style.css" />
 </head>
 <body>
     <div class="container">
-        <h1>
-            <img src="/assets/barbie.jpg" alt="Barbie Icon" class="barbie-icon" />
-            Barbie's Dream House chat
-        </h1>
+        <header class="main-header">
+            <h1>
+                <img src="/assets/barbie.svg" alt="Barbie Icon" class="barbie-icon" />
+                Barbie's Magical Chat
+            </h1>
+        </header>
 
-        <hr style="margin: 2rem 0; border-color: #FFC0CB;" />
+        <hr class="header-divider" />
         <h1 class="chat-heading">Let's chat!</h1>
 
         <div id="chatbox" class="chatbox">
-        </div>
+            </div>
 
         <div class="chat-input-controls">
             <input type="text" id="chat-text-input" placeholder="What's on your mind, fashionista?" />
-            <button class="chat-btn" id="sendTextBtn">Send</button>
-            <button class="chat-btn" id="startRecordingChatBtn">💖 Start Chat</button>
-            <button class="chat-btn" id="stopRecordingChatBtn" style="display: none;">⏹️ Stop Chat</button>
+            <button class="chat-btn" id="sendTextBtn">
+                <img src="/assets/send.svg" alt="Send" class="chat-icon">
+            </button>
+            <button class="chat-btn record-btn" id="startRecordingChatBtn">
+                <img src="/assets/mic.svg" alt="Start Recording" class="chat-icon">
+            </button>
+            <button class="chat-btn record-btn" id="stopRecordingChatBtn" style="display: none;">
+                <img src="/assets/stop.svg" alt="Stop Recording" class="chat-icon">
+            </button>
         </div>
-
+        
         <audio id="llmResponseAudioPlayer" controls style="width: 100%; display: none; margin-top: 1rem;"></audio>
     </div>
 
+    <div class="magical-glow"></div>
+    <div class="magical-stars"></div>
     <script src="/static/script.js"></script>
 </body>
 </html>
