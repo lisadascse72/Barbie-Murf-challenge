@@ -19,19 +19,21 @@
         <h1 class="chat-heading">Let's chat!</h1>
 
         <div id="chatbox" class="chatbox">
-            </div>
+        </div>
 
         <div class="chat-input-controls">
             <input type="text" id="chat-text-input" placeholder="What's on your mind, fashionista?" />
-            <button class="chat-btn" id="sendTextBtn">
-                <img src="/assets/send.svg" alt="Send" class="chat-icon">
-            </button>
-            <button class="chat-btn record-btn" id="startRecordingChatBtn">
-                <img src="/assets/mic.svg" alt="Start Recording" class="chat-icon">
-            </button>
-            <button class="chat-btn record-btn" id="stopRecordingChatBtn" style="display: none;">
-                <img src="/assets/stop.svg" alt="Stop Recording" class="chat-icon">
-            </button>
+            <div class="chat-btn-group">
+                <button class="chat-btn" id="sendTextBtn">
+                    <img src="/assets/send.svg" alt="Send" class="chat-icon">
+                </button>
+                <button class="chat-btn record-btn" id="startRecordingChatBtn">
+                    <img src="/assets/mic.svg" alt="Start Recording" class="chat-icon">
+                </button>
+                <button class="chat-btn record-btn" id="stopRecordingChatBtn" style="display: none;">
+                    <img src="/assets/stop.svg" alt="Stop Recording" class="chat-icon">
+                </button>
+            </div>
         </div>
         
         <audio id="llmResponseAudioPlayer" controls style="width: 100%; display: none; margin-top: 1rem;"></audio>

@@ -128,6 +128,11 @@ h1 {
     box-shadow: 0 0 0 3px #FF1493;
 }
 
+.chat-btn-group {
+    display: flex;
+    gap: 15px;
+}
+
 .chat-btn {
     background: #FF1493;
     border: none;
@@ -175,7 +180,7 @@ h1 {
 }
 
 .magical-stars {
-    background-image: url('data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHdpZHRoPSIxMDAiIGhlaWdodD0iMTAwIj4KICA8Y2lyY2xlIGN4PSIyNSIgY3k9IjI1IiByPSIwLjUiIGZpbGw9IiNmZmYiIC8+CiAgPGNpcmNsZSBjeD0iMTMiIGN5PSI4NSIgcm9sPSIwLjUiIGZpbGw9IiNmZmYiIC8+CiAgPGNpcmNsZSBjeD0iNjUiIGN5PSIxOCIgcm9sPSIwLjUiIGZpbGw9IiNmZmYiIC8+CiAgPGNpcmNsZSBjeD0iODUiIGN5PSI1NiIgcm9sPSIwLjUiIGZpbGw9IiNmZmYiIC8+CiAgPGNpcmNsZGUgY3g9IjM1IiBjeT0iNzMiIHJvbD0iMC41IiBmaWxsPSIjZmZmIiAvPgo8L3N2Zz4=');
+    background-image: url('data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHdpZHRoPSIxMDAiIGhlaWdodD0iMTAwIj4KICA8Y2lyY2xlIGN4PSIyNSIgY3k9IjI1IiByPSIwLjUiIGZpbGw9IiNmZmYiIC8+CiAgPGNpcmNsZSBjeD0iMTMiIGN5PSI4NSIgcm9sPSIwLjUiIGZpbGw9IiNmZmYiIC8+CiAgPGNpcmNsZSBjeD0iNjUiIGN5PSIxOCIgcm9sPSIwLjUiIGZpbGw9IiNmZmYiIC8+CiAgPGNpcmNsZSBjeD0iODUiIGN5PSI1NiIgcm9sPSIwLjUiIGZpbGw9IiNmZmYiIC8+CiAgPGNpcmNsZSBjeD0iMzUiIGN5PSI3MyIgc3JvbD0iMC41IiBmaWxsPSIjZmZmIiAvPgo8L3N2Zz4=');
     background-size: 10px 10px, 15px 15px, 20px 20px;
     background-repeat: repeat;
     animation: twinkle 15s infinite;
@@ -186,10 +191,9 @@ h1 {
     50% { opacity: 1; }
 }
 
-/* Mobile Responsiveness */
+/* Mobile Responsiveness - Corrected */
 @media screen and (max-width: 768px) {
     body {
-        /* This prevents the background from being cut off on some mobile devices */
         height: auto;
         min-height: 100vh;
         align-items: flex-start;
@@ -197,17 +201,17 @@ h1 {
     }
 
     .container {
-        width: 95%; /* Make it a little wider for mobile */
+        width: 95%;
         max-width: 100%;
-        height: auto; /* Allow height to adjust */
-        min-height: 90vh; /* Ensure it still looks like an app */
+        height: auto;
+        min-height: 90vh;
         padding: 1rem;
-        border-radius: 20px; /* Keep the rounded corners on mobile */
-        box-shadow: 0 0 50px rgba(255, 105, 180, 0.4); /* Keep the glow effect */
+        border-radius: 20px;
+        box-shadow: 0 0 50px rgba(255, 105, 180, 0.4);
     }
 
     h1 {
-        font-size: 1.5rem; /* Smaller font for title */
+        font-size: 1.5rem;
     }
 
     .barbie-icon {
@@ -219,24 +223,21 @@ h1 {
     }
 
     .chatbox {
-        max-height: calc(100vh - 250px); /* Dynamic height for better fit */
+        max-height: calc(100vh - 250px);
         margin-bottom: 1rem;
     }
-
+    
     .chat-input-controls {
-        gap: 10px;
-        flex-wrap: wrap; /* Allows buttons to wrap if needed */
-        justify-content: center;
+        flex-wrap: nowrap;
+        justify-content: flex-start;
     }
 
     #chat-text-input {
-        flex-basis: 100%; /* Make input take full width */
-        order: 1; /* Position input at the top of the controls row */
+        flex-grow: 1;
+        order: initial;
     }
-    
-    .chat-btn {
-        width: 45px;
-        height: 45px;
-        order: 2; /* Position buttons below the input */
+
+    .chat-btn-group {
+        flex-shrink: 0;
     }
 }
