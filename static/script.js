@@ -1,3 +1,11 @@
+// static/script.js
+// --- Configuration for Local Development ---
+// For local development, set the URL to your Uvicorn server.
+// For deployment, this should be an empty string "" if the frontend and backend are on the same host.
+// const BACKEND_URL = "http://localhost:8000";
+// For deployment, change this to an empty string.
+const BACKEND_URL = "";
+
 // --- UI Elements and State ---
 const chatbox = document.getElementById("chatbox");
 const chatTextInput = document.getElementById("chat-text-input");
@@ -6,22 +14,9 @@ const startRecordingChatBtn = document.getElementById("startRecordingChatBtn");
 const stopRecordingChatBtn = document.getElementById("stopRecordingChatBtn");
 const llmResponseAudioPlayer = document.getElementById("llmResponseAudioPlayer");
 
-// API Key UI elements (removed from HTML, but variables kept for now)
-const openSidebarBtn = document.getElementById("open-sidebar-btn");
-const closeSidebarBtn = document.getElementById("close-sidebar-btn");
-const sidebar = document.getElementById("settings-sidebar");
-const apiKeyForm = document.getElementById("api-key-form");
-
+let sessionId = "user_session_" + Date.now();
+let ws;
 let mediaRecorder;
-let recordedChunks = [];
-let sessionId = "user_session_" + Date.now(); // Unique session ID
-
-// No longer storing keys from UI, will use .env keys via the backend
-let apiKeys = {
-    gemini: null,
-    murf: null,
-    assemblyai: null
-};
 
 // --- Helper Functions for UI ---
 function addChatMessage(message, sender) {
@@ -33,45 +28,88 @@ function addChatMessage(message, sender) {
     chatbox.scrollTop = chatbox.scrollHeight;
 }
 
-function playAudioFromUrl(url) {
-    llmResponseAudioPlayer.src = url;
-    llmResponseAudioPlayer.style.display = "block";
-    llmResponseAudioPlayer.play();
+function handleAudioStreaming() {
+    // The WebSocket URL must also point to the backend server's address
+    const protocol = window.location.protocol === 'https:' ? 'wss' : 'ws';
+    const host = window.location.host;
+    const wsUrl = `${protocol}://${host.split(':')[0]}:8000/ws/audio_stream/${sessionId}`;
+
+    const audioContext = new (window.AudioContext || window.webkitAudioContext)();
+    
+    ws = new WebSocket(wsUrl);
+    
+    ws.onmessage = async (event) => {
+        try {
+            const data = JSON.parse(event.data);
+            if (data.type === 'audio_chunk' && data.audio) {
+                const audioData = atob(data.audio);
+                const arrayBuffer = new ArrayBuffer(audioData.length);
+                const view = new Uint8Array(arrayBuffer);
+                for (let i = 0; i < audioData.length; i++) {
+                    view[i] = audioData.charCodeAt(i);
+                }
+                
+                try {
+                    const audioBufferSource = audioContext.createBufferSource();
+                    const audioBufferDecoded = await audioContext.decodeAudioData(arrayBuffer);
+                    audioBufferSource.buffer = audioBufferDecoded;
+                    audioBufferSource.connect(audioContext.destination);
+                    audioBufferSource.start();
+                } catch (error) {
+                    console.error("Error decoding audio chunk:", error);
+                }
+            } else if (data.type === 'finished_audio') {
+                console.log("Audio streaming finished.");
+                ws.close();
+            } else if (data.type === 'error') {
+                console.error("WebSocket Error:", data.message);
+                addChatMessage(`Audio Streaming Error: ${data.message}`, "agent");
+                ws.close();
+            }
+        } catch (e) {
+            console.error("Error parsing WebSocket message:", e, event.data);
+            addChatMessage(`Audio Streaming Error: An unexpected issue occurred.`, "agent");
+            ws.close();
+        }
+    };
+
+    ws.onclose = () => {
+        console.log("WebSocket connection closed.");
+    };
+
+    ws.onerror = (error) => {
+        console.error("WebSocket error observed:", error);
+    };
 }
 
-
 // --- Event Listeners ---
-
-// Send text message
 sendTextBtn.addEventListener("click", async () => {
     const text = chatTextInput.value.trim();
     if (!text) return;
 
     addChatMessage(text, "user");
     chatTextInput.value = "";
-    llmResponseAudioPlayer.style.display = "none";
-
-    // Build the request body without API keys
-    const requestBody = { user_text: text };
-
+    
     try {
-        const response = await fetch(`http://localhost:8000/agent/chat_text/${sessionId}`, {
+        // Use the defined BACKEND_URL variable here
+        const response = await fetch(`${BACKEND_URL}/agent/chat_text/${sessionId}`, {
             method: "POST",
-            headers: { 
-                "Content-Type": "application/json",
-            },
-            body: JSON.stringify(requestBody)
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ user_text: text })
         });
 
-        const data = await response.json();
         if (response.ok) {
+            const data = await response.json();
             addChatMessage(data.llm_response_text, "agent");
-            if (data.llm_response_audio_url) {
-                playAudioFromUrl(data.llm_response_audio_url);
-            }
+            handleAudioStreaming();
         } else {
-            addChatMessage(`Error: ${data.message}`, "agent");
-            throw new Error(data.message || "Failed to get LLM response");
+            const errorText = await response.text();
+            try {
+                const data = JSON.parse(errorText);
+                addChatMessage(`Error: ${data.message}`, "agent");
+            } catch {
+                addChatMessage(`Error: ${response.status} ${response.statusText}`, "agent");
+            }
         }
     } catch (err) {
         console.error("Error sending text:", err);
@@ -85,14 +123,11 @@ chatTextInput.addEventListener("keypress", (e) => {
     }
 });
 
-// Start Recording for Chat
 startRecordingChatBtn.addEventListener("click", async () => {
-    recordedChunks = [];
-    llmResponseAudioPlayer.style.display = "none";
-
     try {
         const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
         mediaRecorder = new MediaRecorder(stream);
+        let recordedChunks = [];
 
         mediaRecorder.ondataavailable = (e) => {
             if (e.data.size > 0) recordedChunks.push(e.data);
@@ -100,31 +135,40 @@ startRecordingChatBtn.addEventListener("click", async () => {
 
         mediaRecorder.onstop = async () => {
             const blob = new Blob(recordedChunks, { type: "audio/webm" });
-            
             const formData = new FormData();
             formData.append("file", blob, "audio.webm");
 
             try {
-                const response = await fetch(`http://localhost:8000/agent/chat/${sessionId}`, {
+                // Use the defined BACKEND_URL variable here
+                const response = await fetch(`${BACKEND_URL}/agent/chat/${sessionId}`, {
                     method: "POST",
-                    headers: {}, // No headers needed as keys are now from .env
                     body: formData
                 });
 
-                const data = await response.json();
                 if (response.ok) {
+                    const data = await response.json();
                     addChatMessage(data.user_transcript, "user");
                     addChatMessage(data.llm_response_text, "agent");
-                    if (data.llm_response_audio_url) {
-                        playAudioFromUrl(data.llm_response_audio_url);
-                    }
+                    handleAudioStreaming();
                 } else {
-                    addChatMessage(`Error: ${data.message}`, "agent");
-                    throw new Error(data.message || "Failed to process audio chat");
+                    const errorText = await response.text();
+                    try {
+                        const data = JSON.parse(errorText);
+                        addChatMessage(`Error: ${data.message}`, "agent");
+                    } catch {
+                        addChatMessage(`Error: ${response.status} ${response.statusText}`, "agent");
+                    }
                 }
             } catch (err) {
                 console.error("Error sending audio:", err);
                 addChatMessage(`Error: ${err.message}`, "agent");
+            } finally {
+                const recordingMessage = chatbox.querySelector('.chat-message.system');
+                if (recordingMessage && recordingMessage.textContent === "Recording...") {
+                    recordingMessage.remove();
+                }
+                startRecordingChatBtn.style.display = "inline-block";
+                stopRecordingChatBtn.style.display = "none";
             }
         };
 
@@ -141,12 +185,6 @@ startRecordingChatBtn.addEventListener("click", async () => {
 stopRecordingChatBtn.addEventListener("click", () => {
     if (mediaRecorder && mediaRecorder.state === "recording") {
         mediaRecorder.stop();
-        startRecordingChatBtn.style.display = "inline-block";
-        stopRecordingChatBtn.style.display = "none";
-        const recordingMessage = chatbox.querySelector('.chat-message.system');
-        if (recordingMessage && recordingMessage.textContent === "Recording...") {
-            recordingMessage.remove();
-        }
     }
 });
 
