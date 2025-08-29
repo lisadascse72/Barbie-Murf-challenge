@@ -40,5 +40,35 @@
     <div class="magical-glow"></div>
     <div class="magical-stars"></div>
     <script src="/static/script.js"></script>
+    <script>
+function speakText(text) {
+    const utterance = new SpeechSynthesisUtterance(text);
+    utterance.pitch = 1.5;   // Higher pitch for Barbie-like voice
+    utterance.rate = 1.1;    // Slightly faster
+    utterance.volume = 1;    // Full volume
+
+    // Pick a voice (Barbie-style female voice if available)
+    const voices = speechSynthesis.getVoices();
+    const barbieVoice = voices.find(v => v.name.includes("Female") || v.name.includes("Google US English"));
+    if (barbieVoice) {
+        utterance.voice = barbieVoice;
+    }
+
+    speechSynthesis.speak(utterance);
+}
+
+// Call this whenever the bot sends a response
+function handleBotResponse(message) {
+    const chatBox = document.getElementById("chat-box");
+    const p = document.createElement("p");
+    p.className = "bot-message";
+    p.innerText = message;
+    chatBox.appendChild(p);
+
+    // Make Barbie speak
+    speakText(message);
+}
+</script>
+
 </body>
 </html>
