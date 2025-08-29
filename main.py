@@ -5,6 +5,8 @@ from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel
 from dotenv import load_dotenv
 from pathlib import Path
+from fastapi.responses import FileResponse
+
 import os
 import shutil
 import httpx
@@ -340,9 +342,16 @@ async def agent_chat_text(
 
 # Serve static files (HTML, CSS, JS)
 app.mount("/static", StaticFiles(directory="static"), name="static")
+app.mount("/assets", StaticFiles(directory="assets"), name="assets")  # NEW: to serve your images/icons
+
+# Root endpoint to serve the HTML file properly
+@app.get("/", response_class=FileResponse)
+async def get_index():
+    return Path("static/index.html")
+
 
 # Root endpoint to serve the HTML file
-@app.get("/")
-async def get_index():
-    with open(Path("static/index.html"), "r") as f:
-        return f.read()
+# @app.get("/")
+# async def get_index():
+#     with open(Path("static/index.html"), "r") as f:
+#         return f.read()
