@@ -1,98 +1,54 @@
-# Murf Voice Agent
+# 💖 Barbie's Magical Voice Agent 💖
 
-Welcome to **Murf Voice Agent**!  
-This project is designed to empower developers and businesses to build intelligent, responsive, and natural-sounding voice agent solutions. Whether you’re looking to integrate conversational AI into your apps, automate customer support, or prototype voice-driven workflows, Murf Voice Agent provides a flexible foundation.
+This project is a conversational AI voice agent built as part of the **#30DaysofVoiceAgents** challenge by Murf AI. It features a custom "Barbie" persona with specialized skills, all accessible through a simple and engaging web interface.
 
-## 🚀 Features
+## 🚀 Key Features
 
-- **Natural Language Understanding:** Quickly process and interpret user speech input using state-of-the-art NLP models.
-- **Speech Synthesis:** Generate clear, human-like responses using advanced TTS (Text-To-Speech) engines.
-- **Easy Integration:** Simple APIs to plug into existing platforms, chatbots, or voice assistants.
-- **Customizable Workflows:** Configure conversational flows and responses to suit a wide range of use cases.
-- **Extensible:** Add plugins or connect to external services for enhanced capabilities (e.g., translation, sentiment analysis).
+* **Custom Barbie Persona:** The agent responds in a positive, bubbly, and encouraging tone, using classic Barbie catchphrases like "Hi, Barbie!" and "You can be anything!"
+* **Specialized Skills:** The agent has two prompt-based special skills:
+    * **Barbie Stylist:** Provides fun and vibrant fashion advice for any occasion.
+    * **Day Planner:** Creates a fun, structured plan for the day based on a user's goals.
+* **End-to-End Conversational Flow:** The agent handles everything from transcribing spoken queries to generating a real-time voice response.
+* **Robust Audio Playback:** The backend uses a reliable HTTP POST model with Murf AI to generate and serve audio, ensuring a seamless voice experience.
+* **Cloud Deployment:** The agent is deployed and accessible to the public on Render.com.
 
-## 🏗️ Architecture Overview
+## ⚙️ How It Works
 
-- **Frontend:** Provides user interaction via voice or text, capturing audio and displaying responses.
-- **Backend:** Handles speech-to-text conversion, intent recognition, and response generation.
-- **APIs:** Exposes endpoints for integration with third-party applications or services.
+The project is built on a a simple, cohesive architecture:
+1.  **User Input:** You speak or type your query into the web interface.
+2.  **Transcription:** The backend uses **AssemblyAI** to transcribe the spoken query into text.
+3.  **LLM Processing:** The text is sent to the **Gemini AI** model, which uses the specialized Barbie persona to generate a text response.
+4.  **Text-to-Speech:** The backend takes this text and sends it to **Murf AI** to convert it into a voice.
+5.  **Audio Playback:** The URL for the generated audio file is sent back to the frontend, where it is immediately played.
 
 ## 🔧 Getting Started
 
 ### Prerequisites
-
-- Python 3.8+ (or the language specified in your setup)
-- [Murf API Key](https://murf.ai/developers) (if integrating with Murf cloud services)
-- Node.js & npm (for frontend build, if applicable)
-- Microphone and speakers (for local voice interaction)
+* Python 3.8+
+* API keys for Murf AI, Gemini, and AssemblyAI.
 
 ### Installation
-
-```bash
-git clone https://github.com/lisadascse72/Murf-voice-Agent.git
-cd Murf-voice-Agent
-# Install backend dependencies
-pip install -r requirements.txt
-# (Optional) Install frontend dependencies
-cd frontend
-npm install
-```
+1.  Clone this repository.
+2.  Set up a Python virtual environment: `python -m venv venv`.
+3.  Install dependencies: `pip install -r requirements.txt`.
+4.  Create a `.env` file in the root directory and add your API keys:
+    ```
+    MURF_API_KEY=your_murf_api_key
+    VITE_GEMINI_API_KEY=your_gemini_api_key
+    ASSEMBLYAI_API_KEY=your_assemblyai_api_key
+    ```
 
 ### Running the Application
+1.  Start your server from the root directory: `uvicorn main:app --reload`.
+2.  Visit `http://localhost:8000` in your browser.
 
-```bash
-# Start backend server
-python app.py
+## 🔗 Live Demo
 
-# (Optional) Start frontend server
-cd frontend
-npm start
-```
-
-## 🗣️ Usage
-
-- Visit `http://localhost:5000` in your browser.
-- Click the microphone to start speaking.
-- The agent will process your request and respond in natural voice.
-
-## 📦 Example Use Cases
-
-- Virtual customer service agent for websites
-- Automated phone support
-- Voice-powered personal assistant
-- Accessibility tools for hands-free computing
-- Interactive kiosks or smart home devices
-
-## 🖥️ API Reference
-
-| Endpoint                  | Method | Description                                      |
-|---------------------------|--------|--------------------------------------------------|
-| `/api/speech-to-text`     | POST   | Converts speech audio to text                    |
-| `/api/text-to-speech`     | POST   | Synthesizes speech from text                     |
-| `/api/intent`             | POST   | Returns intent and entities from user input      |
-| `/api/conversation`       | POST   | Manages full conversational flow                 |
-
-_Detailed documentation is available in the [`docs/`](docs/) directory._
-
-## 🧩 Extending Functionality
-
-- Add new intents and responses in `intents/`
-- Integrate third-party services via `plugins/`
-- Customize voice styles and languages
-
-## 📝 Contributing
-
-We welcome contributions!  
-Please fork the repo, make your changes, and submit a pull request. Check out our [Contributing Guide](CONTRIBUTING.md) for more details.
-
-## 📄 License
-
-This project is licensed under the MIT License. See [`LICENSE`](LICENSE) for details.
-
-## 🙋 Support & Contact
-
-For feature requests or collaboration, email [iamlisadas2004@gmail.com](iamlisadas2004@gmail.com).
+You can interact with the live agent here:
+[https://barbie-bot-stylist.onrender.com/](https://barbie-bot-stylist.onrender.com/)
 
 ---
 
-Made with ❤️ by [Lisa Das](https://github.com/lisadascse72)
+## 🌟 Credits
+
+This project was developed as part of the **30 Days of AI Voice Agents** challenge.
